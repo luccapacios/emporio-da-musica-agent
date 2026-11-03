@@ -1,0 +1,27 @@
+[project]
+name = "emporio-agent"
+version = "0.1.0"
+description = "Customer service agent prototype for Empório da Música"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.60",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "python-dotenv>=1.0",
+    "holidays>=0.60",
+    "rich>=13.0",
+    "tzdata>=2024.1",  # time zone database for Windows (zoneinfo)
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "httpx>=0.27", "pypdf>=5.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
