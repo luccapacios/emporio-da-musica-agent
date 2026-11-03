@@ -25,11 +25,11 @@ def test_product_fields_are_typed(store):
 def test_descriptions_that_contradict_the_product_are_withheld(store):
     drum = store.products[139]  # "Yamaha Kit 1" described as a Pearl Export
     assert drum.description is None
-    assert "pearl" in drum.description_conflict
+    assert "Pearl" in drum.description_conflict
 
     synth = store.products[142]  # "Korg Synth 1" described as an 88-key Roland, specs say 61
     assert synth.description is None
-    assert "roland" in synth.description_conflict and "88" in synth.description_conflict
+    assert "Roland" in synth.description_conflict and "88 keys" in synth.description_conflict
 
     for consistent in (131, 133, 138, 141, 145):  # Gibson, PRS, Music Man, Yamaha, Fender
         assert store.products[consistent].description_conflict is None, consistent

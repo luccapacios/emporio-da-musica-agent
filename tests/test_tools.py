@@ -164,3 +164,17 @@ def test_bad_arguments_become_tool_errors(tools):
 def test_schemas_match_the_dispatch_table(tools):
     names = {schema["function"]["name"] for schema in tools.schemas()}
     assert names == set(tools.handlers)
+
+
+def test_lookup_without_contact_does_not_reveal_whether_the_order_exists(tools):
+    existing = tools.call("get_order", {"order_id": 8})
+    missing = tools.call("get_order", {"order_id": 999})
+    assert existing == missing
+    assert existing["reason"] == "missing_contact"
+    assert tools.call("check_return", {"order_id": 999}) == tools.call("check_return", {"order_id": 1})
+
+
+def test_terminal_chat_masks_card_numbers():
+    from emporio import cli
+    from emporio.privacy import CARD_MASK
+    assert cli.mask_cards("cartão 4111 1111 1111 1111") == f"cartão {CARD_MASK}"

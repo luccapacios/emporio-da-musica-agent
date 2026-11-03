@@ -18,6 +18,7 @@ from rich.markup import escape
 
 from .agent import build_agent
 from .config import get_settings
+from .privacy import mask_cards
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -51,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
         if text.lower() in ("/sair", "/exit", "/quit"):
             break
         with console.status("Duda está digitando..."):
-            reply = agent.reply(session, text)
+            reply = agent.reply(session, mask_cards(text))
         if args.debug:
             for call in reply.tool_calls:
                 console.print(f"  [dim]consultou {call.name}({escape(json.dumps(call.arguments, ensure_ascii=False))})[/]")

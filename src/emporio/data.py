@@ -144,13 +144,19 @@ def description_conflict(name: str, description: str, specs: dict) -> str | None
         mentioned |= {brand for model, brand in MODEL_BRANDS.items() if _mentions(model, text)}
         others = sorted(mentioned - {name_brand})
         if others:
-            problems.append(f"description refers to {', '.join(others)} but the product is {name_brand}")
+            problems.append(f"description refers to {', '.join(map(brand_label, others))} "
+                            f"but the product is {brand_label(name_brand)}")
     for unit, spec_key in (("teclas", "keys"), ("cordas", "strings")):
         said = re.search(rf"(\d+) {unit}", text)
         spec = str(specs.get(spec_key, ""))
         if said and spec.isdigit() and said.group(1) != spec:
-            problems.append(f"description says {said.group(1)} {unit} but specs say {spec}")
+            problems.append(f"description says {said.group(1)} {spec_key} but specs say {spec}")
     return "; ".join(problems) or None
+
+
+def brand_label(brand: str) -> str:
+    """Display form of a normalized brand name."""
+    return {"prs": "PRS", "music man": "Music Man"}.get(brand, brand.title())
 
 
 def _read(path: Path) -> list[dict[str, str]]:

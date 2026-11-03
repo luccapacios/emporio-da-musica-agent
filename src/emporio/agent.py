@@ -44,7 +44,10 @@ MAX_QUICK_REPLIES = 3
 # calling the tool, which would be a promise nobody keeps.
 HANDOFF_CLAIM = re.compile(
     r"\b(registrei|encaminhei|acionei|repassei|abri um (chamado|protocolo)"
-    r"|protocolo (gerado|criado|registrado|aberto)|passei (o seu|seu|o|a sua|sua) (atendimento|caso|solicita))",
+    r"|protocolo (gerado|criado|registrado|aberto)|passei (o seu|seu|o|a sua|sua) (atendimento|caso|solicita)"
+    # English and Spanish too, since the agent answers in the customer's language
+    r"|(i've|i have|i) (forwarded|escalated|registered|logged|passed)|(ticket|protocol) (created|opened|registered)"
+    r"|(he|hemos) (enviado|registrado|escalado|derivado)|registr[eé] (tu|su) caso)",
     re.IGNORECASE,
 )
 PROTOCOL = re.compile(r"\bEMP-\d{8}-\d{4}\b")

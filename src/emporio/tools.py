@@ -321,6 +321,11 @@ class ToolBox:
         return "missing_contact" if not (phone or email) else "mismatch"
 
     def _verified_order(self, order_id, phone, email) -> tuple[Order | None, dict | None]:
+        # Ask for contact data before looking anything up, so the answer is the same whether
+        # or not the order number exists.
+        if not (phone or email):
+            return None, {"verified": False, "reason": "missing_contact",
+                          "message": "Peça o telefone ou o e-mail cadastrado no pedido."}
         order = self.store.orders.get(int(order_id))
         if order is None:
             return None, {"verified": False, "reason": "mismatch", "message": NOT_FOUND}

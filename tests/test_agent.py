@@ -212,3 +212,10 @@ def test_language_is_stated_in_the_system_prompt(settings, toolbox, memory):
     client = FakeClient([text("It costs R$ 2.199,00.")])
     Agent(settings, toolbox, client=client, memory=memory).reply("l1", "Hi! How much is the Takamine GD20?")
     assert "write your whole reply in English" in client.requests[0]["messages"][0]["content"]
+
+
+def test_handoff_claims_are_caught_in_english_and_spanish():
+    from emporio.agent import unbacked_handoff
+    assert unbacked_handoff("I have forwarded your case to our team.", set()) is True
+    assert unbacked_handoff("He enviado tu caso al equipo.", set()) is True
+    assert unbacked_handoff("I can forward your case to the team if you want.", set()) is False
