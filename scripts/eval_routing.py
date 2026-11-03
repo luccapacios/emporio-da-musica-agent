@@ -14,7 +14,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
-from emporio.agent import build_agent
+from emporio.agent import build_agent, reply_with_retry
 from emporio.config import ROOT, get_settings
 
 PRODUCT_TOOLS = {"search_products", "get_product", "list_active_promotions", "payment_options"}
@@ -86,17 +86,19 @@ def check(case: Case, reply) -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--delay", type=float, default=6.0, help="seconds between cases (free tier rate limits)")
+    parser.add_argument("--delay", type=float, default=12.0, help="seconds between cases (free tier rate limits)")
     args = parser.parse_args()
 
     settings = get_settings()
     agent = build_agent(settings)
     rows, passed = [], 0
     for i, case in enumerate(CASES, 1):
-        reply = agent.reply(f"eval-{uuid.uuid4().hex[:8]}", case.message)
+        reply = reply_with_retry(agent, f"eval-{uuid.uuid4().hex[:8]}", case.message)
         problems = check(case, reply)
         passed += not problems
-        tools = ", ".join(sorted(n for n in called_names(reply) if ":" not in n or n.startswith("get_policy:"))) or "none"
+        tools = ", ".join(
+            f"get_policy({c.arguments.get('topic')})" if c.name == "get_policy" else c.name for c in reply.tool_calls
+        ) or "none"
         status = "pass" if not problems else "FAIL: " + "; ".join(problems)
         print(f"[{i:02d}] {status} | {case.kind} | tools: {tools}")
         rows.append(f"| {i} | {case.kind} | {case.message} | {tools} | {status} |")

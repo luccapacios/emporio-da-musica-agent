@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass, field
+from typing import Callable
 
 import openai
 from openai import OpenAI
@@ -65,6 +67,7 @@ class AgentReply:
     error: str | None = None
     product_ids: list[int] = field(default_factory=list)
     quick_replies: list[str] = field(default_factory=list)
+    ts: str | None = None  # when the reply was saved (store time, ISO 8601)
 
 
 class Agent:
@@ -77,11 +80,14 @@ class Agent:
         )
         self._tools = toolbox.schemas()
 
-    def reply(self, session_id: str, text: str) -> AgentReply:
+    def reply(self, session_id: str, text: str, on_event: Callable[[dict], None] | None = None) -> AgentReply:
+        """Answer one customer message. `on_event` hears about each tool call as it starts."""
         history = self.memory.load(session_id) if self.memory else []
         system = {"role": "system", "content": build_system_prompt(self.toolbox.clock())}
-        new_messages: list[dict] = [{"role": "user", "content": text}]
-        messages = [system, *trim_history(history, MAX_USER_TURNS), *new_messages]
+        user = {"role": "user", "content": text}
+        # Stored messages carry a timestamp for the chat UI; the model never sees it.
+        new_messages: list[dict] = [{**user, "ts": self._stamp()}]
+        messages = [system, *map(_for_model, trim_history(history, MAX_USER_TURNS)), user]
         traces: list[ToolTrace] = []
 
         try:
@@ -92,12 +98,15 @@ class Agent:
                 # signatures on tool calls, which must be sent back on the next request.
                 assistant = message.model_dump(exclude_none=True)
                 messages.append(assistant)
-                new_messages.append(assistant)
                 if not message.tool_calls:
                     answer = (message.content or "").strip()
+                    new_messages.append({**assistant, "ts": self._stamp()})
                     break
+                new_messages.append(assistant)
                 for call in message.tool_calls:
                     arguments = _parse_arguments(call.function.arguments)
+                    if on_event:
+                        on_event({"type": "tool", "name": call.function.name, "arguments": arguments})
                     result = self.toolbox.call(call.function.name, arguments)
                     traces.append(ToolTrace(call.function.name, arguments, result))
                     tool_message = {"role": "tool", "tool_call_id": call.id,
@@ -110,12 +119,16 @@ class Agent:
 
         if not answer:
             answer = FALLBACK_TEXT
-            new_messages.append({"role": "assistant", "content": answer})
+            new_messages.append({"role": "assistant", "content": answer, "ts": self._stamp()})
         if self.memory:
             self.memory.save(session_id, history + new_messages)
         text, product_ids, quick = split_markers(answer)
         known = [i for i in product_ids if i in self.toolbox.store.products]
-        return AgentReply(session_id, text or FALLBACK_TEXT, traces, product_ids=known, quick_replies=quick)
+        return AgentReply(session_id, text or FALLBACK_TEXT, traces, product_ids=known, quick_replies=quick,
+                          ts=new_messages[-1].get("ts"))
+
+    def _stamp(self) -> str:
+        return self.toolbox.clock().isoformat(timespec="seconds")
 
     def _complete(self, messages: list[dict]):
         response = self.client.chat.completions.create(
@@ -125,6 +138,24 @@ class Agent:
             temperature=self.settings.temperature,
         )
         return response.choices[0].message
+
+
+def reply_with_retry(agent: Agent, session_id: str, text: str, attempts: int = 3, wait: float = 60.0) -> AgentReply:
+    """For batch scripts on rate limited tiers: retry a turn that hit a rate limit.
+
+    A failed turn is not saved to memory, so retrying never duplicates history.
+    """
+    for attempt in range(attempts):
+        reply = agent.reply(session_id, text)
+        if not (reply.error and "RateLimit" in reply.error) or attempt == attempts - 1:
+            return reply
+        log.warning("rate limited; retrying in %.0fs", wait)
+        time.sleep(wait)
+    return reply
+
+
+def _for_model(message: dict) -> dict:
+    return {k: v for k, v in message.items() if k != "ts"}
 
 
 def _parse_arguments(raw: str | None) -> dict:

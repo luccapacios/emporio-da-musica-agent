@@ -14,7 +14,7 @@ import time
 import uuid
 from dataclasses import dataclass
 
-from emporio.agent import build_agent
+from emporio.agent import build_agent, reply_with_retry
 from emporio.config import ROOT, get_settings
 
 
@@ -103,7 +103,7 @@ def run(scenario: Scenario, agent, delay: float) -> str:
         "",
     ]
     for turn in scenario.turns:
-        reply = agent.reply(session, turn)
+        reply = reply_with_retry(agent, session, turn)
         lines += [f"**Cliente:** {turn}", ""]
         if reply.tool_calls:
             lines += ["> Tools: " + " · ".join(format_call(c) for c in reply.tool_calls), ""]
@@ -117,7 +117,7 @@ def run(scenario: Scenario, agent, delay: float) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", help="run a single scenario by its number, e.g. 03")
-    parser.add_argument("--delay", type=float, default=5.0, help="seconds between turns (free tier rate limits)")
+    parser.add_argument("--delay", type=float, default=10.0, help="seconds between turns (free tier rate limits)")
     args = parser.parse_args()
 
     settings = get_settings()

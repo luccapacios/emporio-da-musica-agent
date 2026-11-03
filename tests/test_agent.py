@@ -77,6 +77,18 @@ def test_runs_tools_then_answers_and_saves_history(settings, toolbox, memory):
 
     saved = memory.load("s1")
     assert [m["role"] for m in saved] == ["user", "assistant", "tool", "assistant"]
+    assert saved[0]["ts"] == saved[-1]["ts"] == reply.ts == "2026-11-03T10:00:00-04:00"
+
+
+def test_timestamps_never_reach_the_model_and_tools_are_announced(settings, toolbox, memory):
+    client = FakeClient([text("Oi!"), tool_call("store_hours_now", {}), text("Abrimos às 9h.")])
+    agent = Agent(settings, toolbox, client=client, memory=memory)
+    agent.reply("s6", "oi")
+    events = []
+    agent.reply("s6", "vocês abrem?", on_event=events.append)
+    assert events == [{"type": "tool", "name": "store_hours_now", "arguments": {}}]
+    for request in client.requests:
+        assert all("ts" not in m for m in request["messages"])
 
 
 def test_next_turn_sees_previous_history(settings, toolbox, memory):
