@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Empório da Música · Atendimento</title>
+<style>
+  :root {
+    --navy: #1B4F72;
+    --navy-dark: #143B56;
+    --blue: #2E86C1;
+    --orange: #F5A623;
+    --bg: #FFFFFF;
+    --surface: #F3F5F8;
+    --line: #E4E8EE;
+    --text: #1E2A36;
+    --muted: #6A7684;
+    --ok: #1E9E61;
+    --danger: #B3261E;
+    --radius: 18px;
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.45; }
+
+  .app { display: flex; flex-direction: column; height: 100%; max-width: 760px; margin: 0 auto;
+         border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+           border-bottom: 3px solid var(--orange); background: var(--bg); }
+  .logo { width: 42px; height: 42px; border-radius: 50%; background: var(--navy); display: grid;
+          place-items: center; flex: none; }
+  .brand { flex: 1; min-width: 0; }
+  .brand h1 { margin: 0; font-size: 16px; font-weight: 700; color: var(--navy-dark); letter-spacing: .2px; }
+  .brand p { margin: 2px 0 0; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); display: inline-block; }
+  .actions { display: flex; align-items: center; gap: 6px; }
+  .toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted);
+            cursor: pointer; user-select: none; padding: 6px 8px; border-radius: 10px; }
+  .toggle:hover { background: var(--surface); }
+  .switch { width: 32px; height: 18px; border-radius: 9px; background: #C9D1DA; position: relative; transition: background .15s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+                   border-radius: 50%; background: #fff; transition: transform .15s; }
+  .toggle[aria-checked="true"] .switch { background: var(--blue); }
+  .toggle[aria-checked="true"] .switch::after { transform: translateX(14px); }
+  .icon-btn { border: 0; background: none; color: var(--muted); padding: 8px; border-radius: 10px;
+              cursor: pointer; display: grid; place-items: center; }
+  .icon-btn:hover { background: var(--surface); color: var(--navy); }
+
+  main { flex: 1; overflow-y: auto; padding: 20px 18px 8px; scroll-behavior: smooth; }
+
+  .welcome { text-align: center; padding: 48px 8px 24px; }
+  .welcome .logo { width: 64px; height: 64px; margin: 0 auto 16px; }
+  .welcome h2 { margin: 0 0 6px; font-size: 22px; color: var(--navy-dark); }
+  .welcome p { margin: 0 auto 22px; max-width: 420px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip { border: 1px solid var(--line); background: var(--bg); color: var(--navy); border-radius: 999px;
+          padding: 8px 14px; font: inherit; font-size: 14px; cursor: pointer; transition: border-color .15s, background .15s; }
+  .chip:hover { border-color: var(--blue); background: #F5FAFE; }
+
+  .row { display: flex; margin: 6px 0; }
+  .row.user { justify-content: flex-end; }
+  .bubble { max-width: 82%; padding: 10px 14px; border-radius: var(--radius); white-space: pre-wrap; word-wrap: break-word; }
+  .row.bot .bubble { background: var(--surface); border-top-left-radius: 6px; }
+  .row.user .bubble { background: var(--navy); color: #fff; border-top-right-radius: 6px; }
+  .row.error .bubble { background: #FDF0EF; color: var(--danger); border-top-left-radius: 6px; }
+  .meta { font-size: 11.5px; color: var(--muted); margin: 2px 6px 8px; }
+  .row.user + .meta { text-align: right; }
+  .tools { display: none; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px 2px; }
+  .show-tools .tools { display: flex; }
+  .tool { font-size: 12px; color: var(--navy); background: #EAF3FA; border-radius: 6px; padding: 2px 8px;
+          font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+
+  .typing { display: inline-flex; gap: 4px; padding: 14px 16px; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: #9AA5B1; animation: blink 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+
+  footer { padding: 10px 14px 14px; border-top: 1px solid var(--line); background: var(--bg); }
+  form { display: flex; align-items: flex-end; gap: 8px; }
+  textarea { flex: 1; resize: none; border: 1px solid var(--line); border-radius: 22px; padding: 11px 16px;
+             font: inherit; color: var(--text); max-height: 140px; outline: none; background: var(--bg);
+             overflow-y: hidden; line-height: 20px; height: 44px; }
+  textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(46, 134, 193, .15); }
+  .send { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--navy); color: #fff;
+          cursor: pointer; display: grid; place-items: center; flex: none; transition: background .15s; }
+  .send:hover { background: var(--navy-dark); }
+  .send:disabled { background: #A9B7C4; cursor: default; }
+  .hint { font-size: 11.5px; color: var(--muted); text-align: center; margin-top: 8px; }
+
+  @media (max-width: 560px) {
+    .app { border: 0; }
+    .toggle .label { display: none; }
+    .bubble { max-width: 90%; }
+    .welcome { padding-top: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="logo" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l11-2v13" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" fill="#F5A623"/><circle cx="17" cy="16" r="3" fill="#F5A623"/></svg>
+    </div>
+    <div class="brand">
+      <h1>Empório da Música</h1>
+      <p><span class="dot" aria-hidden="true"></span>Duda, assistente virtual</p>
+    </div>
+    <div class="actions">
+      <div class="toggle" id="toolsToggle" role="switch" tabindex="0" aria-checked="false" title="Mostrar o que a Duda consultou">
+        <span class="label">Ver consultas</span><span class="switch" aria-hidden="true"></span>
+      </div>
+      <button class="icon-btn" id="resetBtn" title="Nova conversa" aria-label="Nova conversa">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="messages" aria-live="polite"></main>
+
+  <footer>
+    <form id="composer">
+      <textarea id="input" rows="1" placeholder="Escreva sua mensagem" aria-label="Mensagem" maxlength="2000"></textarea>
+      <button class="send" id="sendBtn" type="submit" aria-label="Enviar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+      </button>
+    </form>
+    <div class="hint">Enter envia · Shift + Enter quebra a linha</div>
+  </footer>
+</div>
+
+<script>
+const SUGGESTIONS = [
+  "Quais violões até R$ 1.000 vocês têm?",
+  "Quanto custa o Takamine GD20?",
+  "Vocês estão abertos hoje?",
+  "Me arrependi da compra, posso devolver?",
+];
+const TOOL_LABELS = {
+  search_products: "Catálogo", get_product: "Produto", list_active_promotions: "Promoções",
+  payment_options: "Pagamento", get_order: "Pedido", find_orders: "Pedidos", check_return: "Trocas e devoluções",
+  store_hours_now: "Horário", get_policy: "Manual", escalate_to_human: "Equipe",
+};
+
+const $messages = document.getElementById("messages");
+const $input = document.getElementById("input");
+const $send = document.getElementById("sendBtn");
+const $toggle = document.getElementById("toolsToggle");
+
+const store = {
+  get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+  set(key, value) { try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch {} },
+};
+let sessionId = store.get("emporio-session");
+let busy = false;
+
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function format(text) {
+  return escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s.,!?;:)]|$)/gm, "$1<strong>$2</strong>");
+}
+function time() {
+  return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+function scrollDown() { $messages.scrollTop = $messages.scrollHeight; }
+
+function renderWelcome() {
+  $messages.innerHTML = `
+    <section class="welcome">
+      <div class="logo" aria-hidden="true">${document.querySelector("header .logo").innerHTML}</div>
+      <h2>Oi! Eu sou a Duda</h2>
+      <p>Assistente virtual da Empório da Música. Posso ajudar com instrumentos, preços, pedidos, trocas e horários.</p>
+      <div class="chips">${SUGGESTIONS.map(s => `<button class="chip" type="button">${escapeHtml(s)}</button>`).join("")}</div>
+    </section>`;
+  $messages.querySelectorAll(".chip").forEach(chip => chip.addEventListener("click", () => send(chip.textContent)));
+}
+
+function addMessage(role, text, tools = [], stamp = time()) {
+  document.querySelector(".welcome")?.remove();
+  const row = document.createElement("div");
+  row.className = `row ${role}`;
+  row.innerHTML = `<div class="bubble">${format(text)}</div>`;
+  $messages.appendChild(row);
+  if (role === "bot" && tools.length) {
+    const box = document.createElement("div");
+    box.className = "tools";
+    box.innerHTML = tools.map(t => {
+      const detail = t.name === "get_policy" ? ` · ${t.arguments.topic}` : "";
+      return `<span class="tool" title="${escapeHtml(JSON.stringify(t.arguments))}">${TOOL_LABELS[t.name] || t.name}${escapeHtml(detail)}</span>`;
+    }).join("");
+    $messages.appendChild(box);
+  }
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = role === "user" ? stamp : `Duda · ${stamp}`;
+  if (role !== "error") $messages.appendChild(meta);
+  scrollDown();
+}
+
+function showTyping() {
+  const row = document.createElement("div");
+  row.className = "row bot";
+  row.id = "typing";
+  row.innerHTML = `<div class="bubble typing" aria-label="Duda está digitando"><span></span><span></span><span></span></div>`;
+  $messages.appendChild(row);
+  scrollDown();
+}
+
+async function send(text) {
+  text = text.trim();
+  if (!text || busy) return;
+  busy = true;
+  $send.disabled = true;
+  addMessage("user", text);
+  $input.value = "";
+  autosize();
+  showTyping();
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, session_id: sessionId }),
+    });
+    if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
+    const data = await response.json();
+    sessionId = data.session_id;
+    store.set("emporio-session", sessionId);
+    document.getElementById("typing")?.remove();
+    addMessage("bot", data.reply, data.tool_calls);
+  } catch (error) {
+    document.getElementById("typing")?.remove();
+    addMessage("error", "Não consegui falar com o servidor agora. Tente de novo em instantes.");
+    console.error(error);
+  } finally {
+    busy = false;
+    $send.disabled = false;
+    $input.focus();
+  }
+}
+
+async function loadHistory() {
+  if (!sessionId) return renderWelcome();
+  try {
+    const response = await fetch(`/api/chat/${encodeURIComponent(sessionId)}`);
+    const history = response.ok ? await response.json() : [];
+    if (!history.length) return renderWelcome();
+    history.forEach(m => addMessage(m.role === "user" ? "user" : "bot", m.content, [], ""));
+    $messages.querySelectorAll(".meta").forEach(m => { if (!m.textContent.trim() || m.textContent === "Duda · ") m.remove(); });
+  } catch {
+    renderWelcome();
+  }
+}
+
+async function reset() {
+  if (sessionId) {
+    try { await fetch(`/api/chat/${encodeURIComponent(sessionId)}`, { method: "DELETE" }); } catch {}
+  }
+  sessionId = null;
+  store.set("emporio-session", null);
+  renderWelcome();
+  $input.focus();
+}
+
+function setTools(on) {
+  $toggle.setAttribute("aria-checked", String(on));
+  document.getElementById("app").classList.toggle("show-tools", on);
+  store.set("emporio-show-tools", on ? "1" : null);
+}
+
+function autosize() {
+  $input.style.height = "auto";
+  const height = Math.max(44, Math.min($input.scrollHeight + 2, 140));
+  $input.style.height = height + "px";
+  $input.style.overflowY = $input.scrollHeight + 2 > 140 ? "auto" : "hidden";
+}
+
+document.getElementById("composer").addEventListener("submit", e => { e.preventDefault(); send($input.value); });
+$input.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send($input.value); }
+});
+$input.addEventListener("input", autosize);
+document.getElementById("resetBtn").addEventListener("click", reset);
+$toggle.addEventListener("click", () => setTools($toggle.getAttribute("aria-checked") !== "true"));
+$toggle.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); $toggle.click(); } });
+
+setTools(store.get("emporio-show-tools") === "1");
+loadHistory();
+$input.focus();
+</script>
+</body>
+</html>
