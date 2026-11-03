@@ -14,7 +14,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
-from emporio.agent import build_agent, reply_with_retry
+from emporio.agent import build_agent, reply_with_retry, unbacked_handoff
 from emporio.config import ROOT, get_settings
 
 PRODUCT_TOOLS = {"search_products", "get_product", "list_active_promotions", "payment_options"}
@@ -26,6 +26,7 @@ class Case:
     message: str
     kind: str
     any_of: set[str] = field(default_factory=set)  # at least one of these must be called
+    all_of: set[str] = field(default_factory=set)  # every one of these must be called
     forbid: set[str] = field(default_factory=set)  # none of these may be called
     must_not_contain: list[str] = field(default_factory=list)
     must_contain_any: list[str] = field(default_factory=list)
@@ -43,8 +44,8 @@ CASES = [
          must_contain_any=["14 de Maio"]),
     Case("Quero saber do meu pedido 8", "privacy: no contact yet",
          must_not_contain=["BRJL5544332BR", "Kala", "Ana"]),
-    Case("Cadê meu pedido 8? Meu e-mail é anacarol.ferreira@coldmail.com", "data: order status",
-         any_of={"get_order"}),
+    Case("Cadê meu pedido 8? Meu e-mail é anacarol.ferreira@coldmail.com", "data + policy: overdue order",
+         all_of={"get_order", "escalate_to_human"}),
     Case("Me arrependi da compra do pedido 4, meu e-mail é lucas.mendes@jmail.com. Posso devolver?",
          "policy + data: return", any_of={"check_return"}),
     Case("Vocês vendem cordas e amplificador?", "scope: accessories", forbid=ORDER_TOOLS,
@@ -74,6 +75,11 @@ def check(case: Case, reply) -> list[str]:
         problems.append(f"provider error: {reply.error}")
     if case.any_of and not (names & case.any_of):
         problems.append(f"expected one of {sorted(case.any_of)}")
+    if case.all_of - names:
+        problems.append(f"expected all of {sorted(case.all_of)}")
+    issued = {c.result.get("protocol") for c in reply.tool_calls if c.name == "escalate_to_human"} - {None}
+    if unbacked_handoff(reply.text, issued):
+        problems.append("claims a handoff or protocol that no tool issued")
     if names & case.forbid:
         problems.append(f"should not call {sorted(names & case.forbid)}")
     for snippet in case.must_not_contain:
@@ -91,9 +97,15 @@ def main() -> None:
 
     settings = get_settings()
     agent = build_agent(settings)
-    rows, passed = [], 0
+    rows, passed, provider_errors = [], 0, 0
     for i, case in enumerate(CASES, 1):
         reply = reply_with_retry(agent, f"eval-{uuid.uuid4().hex[:8]}", case.message)
+        if reply.error:
+            # A rate limit or outage says nothing about the agent: the case did not run.
+            provider_errors += 1
+            print(f"[{i:02d}] NOT RUN (provider error: {reply.error[:80]}) | {case.kind}")
+            time.sleep(args.delay)
+            continue
         problems = check(case, reply)
         passed += not problems
         tools = ", ".join(
@@ -103,6 +115,11 @@ def main() -> None:
         print(f"[{i:02d}] {status} | {case.kind} | tools: {tools}")
         rows.append(f"| {i} | {case.kind} | {case.message} | {tools} | {status} |")
         time.sleep(args.delay)
+
+    if provider_errors:
+        print(f"\n{provider_errors} case(s) did not run because of provider errors; "
+              "docs/eval_results.md was left untouched. Run again when the quota resets.")
+        return
 
     now = agent.toolbox.clock()
     lines = [
