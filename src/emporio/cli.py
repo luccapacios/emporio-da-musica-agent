@@ -57,7 +57,12 @@ def main(argv: list[str] | None = None) -> int:
                 console.print(f"  [dim]consultou {call.name}({escape(json.dumps(call.arguments, ensure_ascii=False))})[/]")
             if reply.error:
                 console.print(f"  [red]{escape(reply.error)}[/]")
-        console.print(f"[bold #1B4F72]Duda:[/] {escape(reply.text)}\n")
+        console.print(f"[bold #1B4F72]Duda:[/] {escape(reply.text)}")
+        for card in agent.toolbox.product_cards(reply.product_ids):
+            console.print(f"  [#C8813A]▪[/] {escape(card['name'])}: {escape(card['display'])}")
+        if reply.quick_replies:
+            console.print(f"  [dim]sugestões: {escape(' | '.join(reply.quick_replies))}[/]")
+        console.print()
 
     console.print(f"\n[dim]Conversa salva. Para continuar: python -m emporio.cli --session {session}[/]")
     return 0

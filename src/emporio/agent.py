@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 
 import openai
@@ -29,6 +30,26 @@ PROVIDER_ERROR_TEXT = (
 )
 
 
+# Display hints the model appends to its reply (see prompts.py): product ids to show as
+# cards and short quick replies. They are stripped before the customer sees the text.
+MARKER = re.compile(r"\[\[\s*(cards|quick)\s*:\s*(.*?)\]\]", re.IGNORECASE | re.DOTALL)
+MAX_CARDS = 6
+MAX_QUICK_REPLIES = 3
+
+
+def split_markers(text: str) -> tuple[str, list[int], list[str]]:
+    """Return (clean text, product ids, quick replies) from a raw model reply."""
+    ids: list[int] = []
+    quick: list[str] = []
+    for kind, body in MARKER.findall(text):
+        if kind.lower() == "cards":
+            ids += [int(n) for n in re.findall(r"\d+", body)]
+        else:
+            quick += [q.strip() for q in body.split("|") if q.strip()]
+    clean = re.sub(r"\n{3,}", "\n\n", MARKER.sub("", text)).strip()
+    return clean, list(dict.fromkeys(ids))[:MAX_CARDS], [q[:40] for q in quick[:MAX_QUICK_REPLIES]]
+
+
 @dataclass
 class ToolTrace:
     name: str
@@ -42,6 +63,8 @@ class AgentReply:
     text: str
     tool_calls: list[ToolTrace] = field(default_factory=list)
     error: str | None = None
+    product_ids: list[int] = field(default_factory=list)
+    quick_replies: list[str] = field(default_factory=list)
 
 
 class Agent:
@@ -90,7 +113,9 @@ class Agent:
             new_messages.append({"role": "assistant", "content": answer})
         if self.memory:
             self.memory.save(session_id, history + new_messages)
-        return AgentReply(session_id, answer, traces)
+        text, product_ids, quick = split_markers(answer)
+        known = [i for i in product_ids if i in self.toolbox.store.products]
+        return AgentReply(session_id, text or FALLBACK_TEXT, traces, product_ids=known, quick_replies=quick)
 
     def _complete(self, messages: list[dict]):
         response = self.client.chat.completions.create(

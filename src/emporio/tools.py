@@ -262,6 +262,26 @@ class ToolBox:
             }[availability]
         return result
 
+    def product_cards(self, ids: list[int]) -> list[dict]:
+        """Cards for the chat UI, built from current data (not from what the model wrote)."""
+        cards = []
+        for product_id in ids:
+            p = self.store.products.get(product_id)
+            if p is None:
+                continue
+            card = self._card(p)
+            price = card["price"]
+            n = max_installments(price)
+            card.update({
+                "category_id": p.category_id,
+                "color": p.specs.get("color"),
+                "strings": p.specs.get("strings"),
+                "max_installments": n,
+                "installment_value": round(price / n, 2),
+            })
+            cards.append(card)
+        return cards
+
     def list_active_promotions(self) -> dict:
         cards = [self._card(self.store.products[p.product_id]) for p in self.store.active_promotions()]
         return {

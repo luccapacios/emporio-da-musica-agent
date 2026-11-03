@@ -7,7 +7,7 @@ import openai
 import pytest
 from openai.types.chat import ChatCompletionMessage
 
-from emporio.agent import FALLBACK_TEXT, MAX_TOOL_ROUNDS, PROVIDER_ERROR_TEXT, Agent
+from emporio.agent import FALLBACK_TEXT, MAX_TOOL_ROUNDS, PROVIDER_ERROR_TEXT, Agent, split_markers
 from emporio.config import Settings, at
 from emporio.memory import ConversationStore, trim_history
 from emporio.tools import ToolBox
@@ -103,6 +103,23 @@ def test_tool_loop_is_capped(settings, toolbox, memory):
     reply = agent.reply("s4", "vocês abrem?")
     assert reply.text == FALLBACK_TEXT
     assert len(reply.tool_calls) == MAX_TOOL_ROUNDS
+
+
+def test_display_markers_are_stripped_and_parsed():
+    raw = "Separei estes:\n- Tagima, R$ 429,90\n\n[[cards: 83, 85, 85, 9999]]\n[[quick: Só nylon | Só aço]]"
+    text, ids, quick = split_markers(raw)
+    assert text == "Separei estes:\n- Tagima, R$ 429,90"
+    assert ids == [83, 85, 9999]
+    assert quick == ["Só nylon", "Só aço"]
+
+
+def test_reply_exposes_known_product_ids_only(settings, toolbox, memory):
+    client = FakeClient([text("Olha só: Tagima Memphis.\n[[cards: 83, 9999]]\n[[quick: Ver mais]]")])
+    reply = Agent(settings, toolbox, client=client, memory=memory).reply("s5", "violão barato?")
+    assert reply.text == "Olha só: Tagima Memphis."
+    assert reply.product_ids == [83]
+    assert reply.quick_replies == ["Ver mais"]
+    assert "[[cards" in memory.load("s5")[-1]["content"]  # kept in history for the model and the UI
 
 
 def test_trim_history_cuts_at_user_turns():

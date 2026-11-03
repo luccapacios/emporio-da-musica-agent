@@ -44,7 +44,7 @@ def get_settings() -> Settings:
     return Settings(
         llm_base_url=os.getenv("LLM_BASE_URL", GEMINI_OPENAI_URL),
         llm_api_key=os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY"),
-        llm_model=os.getenv("LLM_MODEL", "gemini-2.5-flash"),
+        llm_model=os.getenv("LLM_MODEL", "gemini-3.5-flash"),
         temperature=float(os.getenv("LLM_TEMPERATURE", "0.2")),
         today_override=_parse_now(os.getenv("EMPORIO_TODAY")),
         data_dir=Path(os.getenv("EMPORIO_DATA_DIR", ROOT / "data")),

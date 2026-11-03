@@ -10,9 +10,10 @@ import uuid
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .agent import Agent, build_agent
+from .agent import Agent, build_agent, split_markers
 from .config import ROOT, get_settings
 
 WEB_DIR = ROOT / "web"
@@ -33,11 +34,14 @@ class ChatResponse(BaseModel):
     session_id: str
     reply: str
     tool_calls: list[ToolCallOut]
+    cards: list[dict]
+    quick_replies: list[str]
 
 
 class HistoryMessage(BaseModel):
     role: str
     content: str
+    cards: list[dict] = []
 
 
 def create_app(agent: Agent | None = None) -> FastAPI:
@@ -60,28 +64,44 @@ def create_app(agent: Agent | None = None) -> FastAPI:
     def health() -> dict:
         return {"status": "ok"}
 
+    @app.get("/api/store-status")
+    def store_status() -> dict:
+        return get_agent().toolbox.store_hours_now()
+
     @app.post("/api/chat", response_model=ChatResponse)
     def chat(request: ChatRequest) -> ChatResponse:
+        agent = get_agent()
         session = request.session_id or f"web-{uuid.uuid4().hex[:12]}"
-        reply = get_agent().reply(session, request.message.strip())
+        reply = agent.reply(session, request.message.strip())
         return ChatResponse(
             session_id=session,
             reply=reply.text,
             tool_calls=[ToolCallOut(name=t.name, arguments=t.arguments) for t in reply.tool_calls],
+            cards=agent.toolbox.product_cards(reply.product_ids),
+            quick_replies=reply.quick_replies,
         )
 
     @app.get("/api/chat/{session_id}", response_model=list[HistoryMessage])
     def history(session_id: str) -> list[HistoryMessage]:
         _check_session(session_id)
-        messages = get_agent().memory.load(session_id)
-        return [HistoryMessage(role=m["role"], content=m["content"])
-                for m in messages if m.get("role") in ("user", "assistant") and m.get("content")]
+        agent = get_agent()
+        out = []
+        for m in agent.memory.load(session_id):
+            if m.get("role") not in ("user", "assistant") or not m.get("content"):
+                continue
+            if m["role"] == "user":
+                out.append(HistoryMessage(role="user", content=m["content"]))
+            else:
+                text, ids, _ = split_markers(m["content"])
+                out.append(HistoryMessage(role="assistant", content=text, cards=agent.toolbox.product_cards(ids)))
+        return out
 
     @app.delete("/api/chat/{session_id}", status_code=204)
     def reset(session_id: str) -> None:
         _check_session(session_id)
         get_agent().memory.clear(session_id)
 
+    app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
     return app
 
 
