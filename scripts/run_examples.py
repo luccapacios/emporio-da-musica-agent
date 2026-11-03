@@ -37,12 +37,14 @@ SCENARIOS = [
         ],
     ),
     Scenario(
-        "02-price-and-payment",
-        "Price lookup and payment conditions",
-        "Fuzzy product lookup, PIX price and the installment rule computed from the manual's minimum installment table.",
+        "02-price-and-payment-in-english",
+        "Price and payment conditions, in English",
+        "Fuzzy product lookup, PIX price and the installment rule computed from the manual's minimum "
+        "installment table. The customer writes in English and Duda answers in English: the store's "
+        "customers write in Portuguese, but the agent follows the customer's language.",
         [
-            "Quanto custa o Takamine GD20?",
-            "Dá pra parcelar em quantas vezes? E no PIX fica quanto?",
+            "Hi! How much is the Takamine GD20?",
+            "Can I pay in installments? And what is the price with PIX?",
         ],
     ),
     Scenario(
@@ -104,12 +106,19 @@ def run(scenario: Scenario, agent, delay: float) -> str:
     ]
     for turn in scenario.turns:
         reply = reply_with_retry(agent, session, turn)
-        lines += [f"**Cliente:** {turn}", ""]
-        if reply.tool_calls:
-            lines += ["> Tools: " + " · ".join(format_call(c) for c in reply.tool_calls), ""]
         if reply.error:
-            lines += [f"> Provider error: {reply.error}", ""]
+            # An example must show the agent, not a provider outage: skip writing it.
+            raise RuntimeError(f"provider error in {scenario.slug}: {reply.error}")
+        lines += [f"**Customer:** {turn}", ""]
+        if reply.tool_calls:
+            lines += ["> Tools: " + ", ".join(format_call(c) for c in reply.tool_calls), ""]
         lines += ["**Duda:** " + reply.text.replace("\n", "  \n"), ""]
+        cards = agent.toolbox.product_cards(reply.product_ids)
+        if cards:
+            lines += ["> Product cards shown in the web chat: "
+                      + "; ".join(f"{c['name']}, {c['display']}" for c in cards), ""]
+        if reply.quick_replies:
+            lines += ["> Quick replies: " + " | ".join(reply.quick_replies), ""]
         time.sleep(delay)
     return "\n".join(lines)
 
@@ -127,7 +136,11 @@ def main() -> None:
     for scenario in SCENARIOS:
         if args.only and not scenario.slug.startswith(args.only):
             continue
-        text = run(scenario, agent, args.delay)
+        try:
+            text = run(scenario, agent, args.delay)
+        except RuntimeError as exc:
+            print(f"skipped: {exc}")
+            continue
         path = out_dir / f"{scenario.slug}.md"
         path.write_text(text, encoding="utf-8")
         print(f"wrote {path}")
