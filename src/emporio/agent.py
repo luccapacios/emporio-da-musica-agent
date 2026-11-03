@@ -39,6 +39,42 @@ MAX_CARDS = 6
 MAX_QUICK_REPLIES = 3
 
 
+# A reply that says the case went to the team must be backed by a protocol that
+# escalate_to_human really issued. Smaller models sometimes claim the handoff without
+# calling the tool, which would be a promise nobody keeps.
+HANDOFF_CLAIM = re.compile(
+    r"\b(registrei|encaminhei|acionei|repassei|abri um (chamado|protocolo)"
+    r"|protocolo (gerado|criado|registrado|aberto)|passei (o seu|seu|o|a sua|sua) (atendimento|caso|solicita))",
+    re.IGNORECASE,
+)
+PROTOCOL = re.compile(r"\bEMP-\d{8}-\d{4}\b")
+GUARD_NOTE = (
+    "[Verificação automática do sistema, não é uma mensagem do cliente] Sua resposta afirma que o caso foi "
+    "registrado ou encaminhado, ou cita um protocolo, mas escalate_to_human não devolveu esse protocolo nesta "
+    "conversa. Se o cliente precisa da equipe, chame escalate_to_human agora e use o protocolo que ela devolver. "
+    "Se não, reescreva a resposta sem dizer que registrou, encaminhou ou gerou protocolo."
+)
+
+
+def unbacked_handoff(answer: str, issued: set[str]) -> bool:
+    """True when the answer claims a handoff, or cites a protocol, that no tool call issued."""
+    cited = set(PROTOCOL.findall(answer))
+    if cited:
+        return bool(cited - issued)
+    return bool(HANDOFF_CLAIM.search(answer)) and not issued
+
+
+def _issued_protocols(history: list[dict], traces: list["ToolTrace"]) -> set[str]:
+    issued = {t.result["protocol"] for t in traces if t.name == "escalate_to_human" and "protocol" in t.result}
+    for message in history:
+        if message.get("role") == "tool" and '"protocol"' in (message.get("content") or ""):
+            try:
+                issued.add(json.loads(message["content"])["protocol"])
+            except (ValueError, KeyError, TypeError):
+                pass
+    return issued
+
+
 def split_markers(text: str) -> tuple[str, list[int], list[str]]:
     """Return (clean text, product ids, quick replies) from a raw model reply."""
     ids: list[int] = []
@@ -92,6 +128,7 @@ class Agent:
 
         try:
             answer = None
+            guarded = False
             for _ in range(MAX_TOOL_ROUNDS):
                 message = self._complete(messages)
                 # model_dump keeps provider specific fields, such as Gemini's thought
@@ -100,6 +137,13 @@ class Agent:
                 messages.append(assistant)
                 if not message.tool_calls:
                     answer = (message.content or "").strip()
+                    if not guarded and unbacked_handoff(answer, _issued_protocols(history, traces)):
+                        # Send the draft back once; neither the draft nor the note is saved.
+                        log.warning("reply claimed a handoff that did not happen; asking the model to fix it")
+                        guarded = True
+                        messages.append({"role": "user", "content": GUARD_NOTE})
+                        answer = None
+                        continue
                     new_messages.append({**assistant, "ts": self._stamp()})
                     break
                 new_messages.append(assistant)
@@ -175,5 +219,5 @@ def build_agent(settings: Settings) -> Agent:
     store = load_store(settings.data_dir / "raw")
     policies = Policies.load(settings.data_dir / "processed" / "policies.md")
     toolbox = ToolBox(store, policies, make_clock(settings), settings.runtime_dir / "handoffs.jsonl")
-    memory = ConversationStore(settings.runtime_dir / "conversations.db")
+    memory = ConversationStore(settings.runtime_dir / "conversations.db", retention_days=settings.retention_days)
     return Agent(settings, toolbox, memory=memory)

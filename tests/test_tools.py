@@ -1,4 +1,5 @@
 import json
+import threading
 from datetime import date
 
 import pytest
@@ -129,6 +130,30 @@ def test_escalation_is_logged_with_a_protocol(tools):
     assert result["team_available_now"] is False
     logged = [json.loads(line) for line in tools.handoff_path.read_text(encoding="utf-8").splitlines()]
     assert logged[0]["order_id"] == 8
+    assert result["contact_registered"] is False
+
+
+def test_escalation_says_whether_a_contact_was_registered(tools):
+    with_contact = tools.call("escalate_to_human", {"reason": "other", "summary": "Quer falar com alguém",
+                                                    "contact": " (67) 98432-1098 "})
+    blank = tools.call("escalate_to_human", {"reason": "other", "summary": "Quer falar com alguém", "contact": "  "})
+    assert with_contact["contact_registered"] is True and blank["contact_registered"] is False
+    logged = [json.loads(line) for line in tools.handoff_path.read_text(encoding="utf-8").splitlines()]
+    assert [r["contact"] for r in logged] == ["(67) 98432-1098", None]
+
+
+def test_concurrent_escalations_get_distinct_protocols(tools):
+    protocols = []
+
+    def escalate():
+        protocols.append(tools.call("escalate_to_human", {"reason": "other", "summary": "teste"})["protocol"])
+
+    threads = [threading.Thread(target=escalate) for _ in range(12)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sorted(protocols) == [f"EMP-20261102-{n:04d}" for n in range(1, 13)]
 
 
 def test_bad_arguments_become_tool_errors(tools):

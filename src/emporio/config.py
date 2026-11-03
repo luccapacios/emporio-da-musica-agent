@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import date, datetime, time
+import time
+from datetime import date, datetime, timedelta
+from datetime import time as clock_time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -25,6 +27,7 @@ class Settings:
     today_override: datetime | None
     data_dir: Path
     runtime_dir: Path
+    retention_days: int = 90  # web chat conversations not updated for this long are deleted
 
 
 def _parse_now(value: str | None) -> datetime | None:
@@ -44,11 +47,12 @@ def get_settings() -> Settings:
     return Settings(
         llm_base_url=os.getenv("LLM_BASE_URL", GEMINI_OPENAI_URL),
         llm_api_key=os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY"),
-        llm_model=os.getenv("LLM_MODEL", "gemini-3.5-flash"),
+        llm_model=os.getenv("LLM_MODEL", "gemini-3.5-flash-lite"),
         temperature=float(os.getenv("LLM_TEMPERATURE", "0.2")),
         today_override=_parse_now(os.getenv("EMPORIO_TODAY")),
         data_dir=Path(os.getenv("EMPORIO_DATA_DIR", ROOT / "data")),
         runtime_dir=Path(os.getenv("EMPORIO_RUNTIME_DIR", ROOT / "data" / "runtime")),
+        retention_days=int(os.getenv("EMPORIO_RETENTION_DAYS", "90")),
     )
 
 
@@ -56,10 +60,12 @@ def make_clock(settings: Settings):
     """Return a zero-arg function giving the store's current time (aware, Campo Grande)."""
     if settings.today_override is None:
         return lambda: datetime.now(STORE_TZ).replace(microsecond=0)
-    fixed = settings.today_override
-    return lambda: fixed
+    # The replayed clock keeps running from the chosen moment, so stored messages still get
+    # distinct, ordered timestamps (feedback and edits are keyed by them).
+    start, fixed = time.monotonic(), settings.today_override
+    return lambda: fixed + timedelta(seconds=int(time.monotonic() - start))
 
 
 def at(day: date, hour: int = 10, minute: int = 0) -> datetime:
     """Helper for tests and scripts: an aware datetime in store time."""
-    return datetime.combine(day, time(hour, minute), tzinfo=STORE_TZ)
+    return datetime.combine(day, clock_time(hour, minute), tzinfo=STORE_TZ)

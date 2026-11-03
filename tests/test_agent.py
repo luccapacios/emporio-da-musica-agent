@@ -117,6 +117,44 @@ def test_tool_loop_is_capped(settings, toolbox, memory):
     assert len(reply.tool_calls) == MAX_TOOL_ROUNDS
 
 
+def test_unbacked_handoff_claims_are_sent_back_to_the_model(settings, toolbox, memory):
+    client = FakeClient([
+        text("Já registrei seu caso para a equipe, protocolo gerado!"),  # claims an action it did not take
+        tool_call("escalate_to_human", {"reason": "overdue_delivery", "summary": "Pedido 8 atrasado", "order_id": 8}),
+        text("Registrei para a equipe: protocolo EMP-20261103-0001."),
+    ])
+    reply = Agent(settings, toolbox, client=client, memory=memory).reply("g1", "meu pedido 8 atrasou")
+
+    assert [t.name for t in reply.tool_calls] == ["escalate_to_human"]
+    assert reply.text == "Registrei para a equipe: protocolo EMP-20261103-0001."
+    second_request = client.requests[1]["messages"]
+    assert second_request[-1]["role"] == "user" and "Verificação automática" in second_request[-1]["content"]
+    saved = memory.load("g1")
+    assert all("Verificação automática" not in (m.get("content") or "") for m in saved)
+    assert all("protocolo gerado!" not in (m.get("content") or "") for m in saved)
+
+
+def test_handoff_claims_backed_by_an_earlier_protocol_pass(settings, toolbox, memory):
+    client = FakeClient([
+        tool_call("escalate_to_human", {"reason": "complaint", "summary": "Reclamação"}),
+        text("Registrei: protocolo EMP-20261103-0001."),
+        text("Como eu disse, já registrei seu caso, protocolo EMP-20261103-0001."),
+    ])
+    agent = Agent(settings, toolbox, client=client, memory=memory)
+    agent.reply("g2", "quero reclamar")
+    reply = agent.reply("g2", "e agora?")
+    assert reply.text.startswith("Como eu disse")
+    assert len(client.requests) == 3  # no guard round trip
+
+
+def test_invented_protocol_numbers_are_caught():
+    from emporio.agent import unbacked_handoff
+    assert unbacked_handoff("Seu protocolo é EMP-20261103-0042.", {"EMP-20261103-0001"}) is True
+    assert unbacked_handoff("Seu protocolo é EMP-20261103-0001.", {"EMP-20261103-0001"}) is False
+    assert unbacked_handoff("Posso registrar para a equipe, quer?", set()) is False
+    assert unbacked_handoff("Encaminhei para a equipe.", set()) is True
+
+
 def test_display_markers_are_stripped_and_parsed():
     raw = "Separei estes:\n- Tagima, R$ 429,90\n\n[[cards: 83, 85, 85, 9999]]\n[[quick: Só nylon | Só aço]]"
     text, ids, quick = split_markers(raw)
@@ -144,3 +182,14 @@ def test_trim_history_cuts_at_user_turns():
     trimmed = trim_history(messages, 2)
     assert trimmed[0] == {"role": "user", "content": "3"}
     assert len(trimmed) == 8
+
+
+def test_system_prompt_carries_the_chat_rules():
+    from emporio.prompts import build_system_prompt
+
+    prompt = build_system_prompt(at(date(2026, 11, 3), 22))
+    assert "terça-feira, 03/11/2026, 22:00" in prompt
+    for rule in ("[[quick: Registrar sem contato]]", "[[quick: Encerrar conversa | Tenho outra dúvida]]",
+                 "never require the order number", "at most 4 short bullets", "Never paste raw URLs",
+                 "get_product with that number", "at most 3", "recommend 1 product plus up to 2 alternatives"):
+        assert rule in prompt

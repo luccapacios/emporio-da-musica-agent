@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from datetime import datetime
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -51,6 +52,10 @@ STATUS_LABELS = {
 }
 
 NOT_FOUND = "Não encontrei um pedido com esse número e esses dados de contato."
+
+# Protocol numbers are counted from the handoff log: two threads reading the count at once
+# would issue the same number, so reading, counting and appending happen under one lock.
+_HANDOFF_LOCK = threading.Lock()
 
 
 def brl(value: float) -> str:
@@ -406,20 +411,23 @@ class ToolBox:
     ) -> dict:
         now = self.clock()
         self.handoff_path.parent.mkdir(parents=True, exist_ok=True)
-        existing = self.handoff_path.read_text(encoding="utf-8").splitlines() if self.handoff_path.exists() else []
-        today_prefix = f"EMP-{now:%Y%m%d}-"
-        sequence = sum(1 for line in existing if today_prefix in line) + 1
-        protocol = f"{today_prefix}{sequence:04d}"
-        record = {"protocol": protocol, "created_at": now.isoformat(), "reason": reason, "summary": summary,
-                  "customer_name": customer_name, "contact": contact, "order_id": order_id}
-        with self.handoff_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        contact = (contact or "").strip() or None
+        with _HANDOFF_LOCK:
+            existing = self.handoff_path.read_text(encoding="utf-8").splitlines() if self.handoff_path.exists() else []
+            today_prefix = f"EMP-{now:%Y%m%d}-"
+            sequence = sum(1 for line in existing if today_prefix in line) + 1
+            protocol = f"{today_prefix}{sequence:04d}"
+            record = {"protocol": protocol, "created_at": now.isoformat(), "reason": reason, "summary": summary,
+                      "customer_name": customer_name, "contact": contact, "order_id": order_id}
+            with self.handoff_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
         status = store_status(now)
         return {
             "protocol": protocol,
             "sla": "retorno da equipe em até 24 horas úteis",
             "team_available_now": status["open_now"],
             "next_opening_label": status["next_opening_label"],
+            "contact_registered": contact is not None,
         }
 
     # ---- schemas --------------------------------------------------------------------
@@ -480,7 +488,7 @@ class ToolBox:
                                                          "return_request", "data_request", "other"]},
                    "summary": {"type": "string", "description": "One or two sentences for the team, in Portuguese."},
                    "customer_name": {"type": "string"},
-                   "contact": {"type": "string"},
+                   "contact": {"type": "string", "description": "Phone or e-mail for the team's reply, if the customer gave one."},
                    "order_id": {"type": "integer"},
                }, ["reason", "summary"]),
         ]
