@@ -28,6 +28,11 @@ class FakeAgent:
             {"role": "assistant", "content": "Olha este!\n[[cards: 95]]\n[[quick: Parcelamento]]", "ts": "2026-11-03T10:00:05-04:00"},
         ])
         traces = [ToolTrace("get_product", {"name_or_id": "95"}, {})]
+        if "pedido" in text:
+            traces.append(ToolTrace("get_order", {"order_id": 8}, {"verified": True, "order": {"order_id": 8, "status": "shipped"},
+                                                                "delivery": {"overdue": True, "days_late": 3}}))
+        if "estranho" in text:
+            traces.append(ToolTrace("get_order", {"order_id": 8}, {"verified": False, "reason": "mismatch"}))
         if "reclamação" in text:
             traces.append(ToolTrace("escalate_to_human", {"reason": "complaint"}, {"protocol": "EMP-20261103-0001", "sla": "24h"}))
         return AgentReply(session_id, "Olha este!", traces, product_ids=[95], quick_replies=["Parcelamento"],
@@ -58,6 +63,21 @@ def test_chat_returns_reply_cards_and_quick_replies(client):
 def test_handoff_result_is_returned_for_the_protocol_card(client):
     body = client.post("/api/chat", json={"message": "quero fazer uma reclamação"}, headers=ALICE).json()
     assert body["handoff"]["protocol"] == "EMP-20261103-0001"
+
+
+def test_order_card_only_for_a_verified_lookup(client):
+    ok = client.post("/api/chat", json={"message": "meu pedido 8"}, headers=ALICE).json()
+    assert ok["order"]["order"]["order_id"] == 8 and ok["order"]["delivery"]["overdue"] is True
+    nope = client.post("/api/chat", json={"message": "pedido estranho"}, headers=ALICE).json()
+    assert nope["order"]["order"]["order_id"] == 8  # the verified call in that same turn still counts
+    other = client.post("/api/chat", json={"message": "algo estranho"}, headers=ALICE).json()
+    assert other["order"] is None
+
+
+def test_product_details_endpoint(client):
+    body = client.get("/api/products/95").json()
+    assert body["product"]["specs"]["top"] == "Cedro Sólido"
+    assert client.get("/api/products/1").status_code == 404
 
 
 def test_conversations_are_listed_per_browser_only(client):
@@ -137,3 +157,16 @@ def test_serves_the_web_chat(client):
     page = client.get("/")
     assert page.status_code == 200
     assert "Empório da Música" in page.text
+
+
+def test_pwa_files_are_served_from_the_root(client):
+    sw = client.get("/sw.js")
+    assert sw.status_code == 200
+    assert sw.headers["service-worker-allowed"] == "/"
+    assert "/api/" in sw.text  # api calls are never cached
+    manifest = client.get("/manifest.webmanifest")
+    assert manifest.headers["content-type"].startswith("application/manifest+json")
+    data = manifest.json()
+    assert data["start_url"] == "/" and data["display"] == "standalone"
+    for icon in data["icons"]:
+        assert client.get(icon["src"]).status_code == 200

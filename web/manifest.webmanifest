@@ -1,0 +1,26 @@
+{
+  "name": "Duda, da Empório da Música",
+  "short_name": "Duda",
+  "description": "Atendimento da Empório da Música: instrumentos, preços, pedidos, trocas e horários.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FFFFFF",
+  "theme_color": "#143B56",
+  "categories": ["shopping", "music"],
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Onde está meu pedido?", "short_name": "Meu pedido", "url": "/?q=Onde%20est%C3%A1%20meu%20pedido%3F",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Ver violões até R$ 1.000", "short_name": "Violões", "url": "/?q=Quais%20viol%C3%B5es%20voc%C3%AAs%20t%C3%AAm%20at%C3%A9%20R%24%201.000%3F",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

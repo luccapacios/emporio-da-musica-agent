@@ -63,6 +63,7 @@ class ChatResponse(BaseModel):
     cards: list[dict]
     quick_replies: list[str]
     handoff: dict | None = None
+    order: dict | None = None
 
 
 class HistoryMessage(BaseModel):
@@ -146,6 +147,10 @@ def create_app(agent: Agent | None = None) -> FastAPI:
             agent.memory.touch(session, client, _title(text), _preview(reply.text))
         handoff = next((t.result for t in reply.tool_calls
                         if t.name == "escalate_to_human" and "protocol" in t.result), None)
+        # Only an order the tool verified in this very turn is sent back for the order card.
+        order = next(({"order": t.result["order"], "delivery": t.result.get("delivery", {})}
+                      for t in reversed(reply.tool_calls)
+                      if t.name in ("get_order", "check_return") and t.result.get("verified")), None)
         return ChatResponse(
             session_id=session,
             title=_title(text),
@@ -155,15 +160,33 @@ def create_app(agent: Agent | None = None) -> FastAPI:
             cards=agent.toolbox.product_cards(reply.product_ids),
             quick_replies=reply.quick_replies,
             handoff=handoff,
+            order=order,
         )
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
         return FileResponse(WEB_DIR / "index.html")
 
+    # PWA: the service worker is served from the root so its scope covers the whole app.
+    @app.get("/sw.js", include_in_schema=False)
+    def service_worker() -> FileResponse:
+        return FileResponse(WEB_DIR / "sw.js", media_type="text/javascript",
+                            headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"})
+
+    @app.get("/manifest.webmanifest", include_in_schema=False)
+    def manifest() -> FileResponse:
+        return FileResponse(WEB_DIR / "manifest.webmanifest", media_type="application/manifest+json")
+
     @app.get("/api/health")
     def health() -> dict:
         return {"status": "ok"}
+
+    @app.get("/api/products/{product_id}")
+    def product(product_id: int) -> dict:
+        result = get_agent().toolbox.get_product(str(product_id))
+        if not result.get("found"):
+            raise HTTPException(404, "product not found")
+        return result
 
     @app.get("/api/store-status")
     def store_status() -> dict:
