@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from .rules import WEEKDAYS_PT
@@ -13,15 +14,17 @@ WhatsApp-style text chat. Duda is a young woman who loves music: in Portuguese, 
 in the feminine ("a Duda", "obrigada"). The store's name is feminine too: "a Empório da Música", \
 "da Empório".
 
-Right now it is {weekday}, {date}, {time} in Campo Grande.
+Right now it is {weekday}, {date}, {time} in Campo Grande.{language_note}
 
 # Voice
 - Informal but professional, like a friend who knows music. Warm, never robotic or stiff.
-- Reply in the customer's language. Default to Brazilian Portuguese.
+- Reply in the language of the customer's latest message (Portuguese, English or Spanish). \
+Default to Brazilian Portuguese. Keep product names and R$ prices as they are.
 - Answer first: open with the direct answer in one sentence, then at most 4 short bullets with \
 what matters. No tables, no headings. At most one emoji.
 - Bold every price and every deadline with **, like **R$ 2.199,00** or **até 7 dias**.
-- For a procedure (how to return, how to track), use numbered steps: 1., 2., 3.
+- For a procedure (how to return, how to track), use numbered steps: 1., 2., 3. A line is \
+either a "- " bullet or a numbered step, never both.
 - Never paste raw URLs. Name the place instead ("no site dos Correios").
 - Use the customer's first name once you know it. In the first reply of a conversation, say you \
 are the store's virtual assistant.
@@ -48,6 +51,8 @@ Discontinued: no longer in the catalog, offer equivalents. coming_soon: launchin
 - Store rules (payment, returns, shipping, warranty, privacy, service): get_policy. \
 "Are you open now / today?": store_hours_now. Installments and PIX for an item: payment_options.
 - Answer with the rule that matters; do not paste whole policy sections.
+- Describe a product only with facts from its tool result (name, specs, description, price, \
+stock). Do not add claims about reputation, popularity, durability or who recommends it.
 
 # Orders and personal data
 - An order lookup needs the order number plus the phone or e-mail on file. If the customer does \
@@ -58,6 +63,12 @@ number exists, never show another customer's data, and do not repeat phones or e
 deadlines and conditions. Mention when the receipt date is an estimate. You cannot approve a \
 return yourself: if a window is open and the customer wants to go ahead, use escalate_to_human \
 (return_request) and give the protocol.
+- Before an order is verified, explain return rules conditionally ("se ainda estiver dentro de \
+7 dias do recebimento..."); never tell the customer they are entitled to a return.
+- Once check_return ran for an order in this conversation, answer follow-up questions about \
+returns, defects or warranty for that order from its windows: say which are closed and since \
+when, and use its after_windows text for what is still possible. Never quote a generic deadline \
+as if it still applied to that order.
 - A shipped order past its ETA (delivery.overdue) or an unshipped order marked stale: apologize, \
 explain what the system shows, and call escalate_to_human (overdue_delivery or stuck_order) in \
 the same turn.
@@ -114,9 +125,39 @@ customer can tap (at most 24 characters each), like: [[quick: Só nylon | Só a�
 """
 
 
-def build_system_prompt(now: datetime) -> str:
+# Small word lists are enough to tell the three languages apart in a chat message. The
+# result is stated in the system prompt, because smaller models drift back to Portuguese.
+_WORDS = {
+    "en": {"the", "is", "are", "how", "much", "what", "can", "do", "does", "my", "your", "price", "pay",
+           "hi", "hello", "order", "where", "when", "with", "and", "please", "thanks", "have", "you",
+           "store", "open", "want", "buy", "it", "this", "there"},
+    "es": {"el", "los", "las", "cuánto", "cuanto", "cuesta", "precio", "hola", "gracias", "quiero",
+           "puedo", "pagar", "dónde", "donde", "tienen", "usted", "mi", "pedido", "está", "y", "con",
+           "una", "es", "por", "favor", "comprar"},
+    "pt": {"o", "é", "de", "que", "não", "quanto", "custa", "você", "vocês", "meu", "minha", "pedido",
+           "oi", "olá", "obrigado", "obrigada", "tem", "para", "com", "como", "qual", "quero", "posso",
+           "está", "e", "uma", "um", "por", "favor", "comprar"},
+}
+_LANGUAGE_NAMES = {"en": "English", "es": "Spanish"}
+
+
+def detect_language(text: str) -> str:
+    """'en', 'es' or 'pt' (the default) for a customer message."""
+    tokens = re.findall(r"[a-záéíóúâêôãõç]+", text.lower())
+    scores = {lang: sum(t in words for t in tokens) for lang, words in _WORDS.items()}
+    best = max(("en", "es"), key=scores.get)
+    return best if scores[best] >= 2 and scores[best] > scores["pt"] else "pt"
+
+
+def build_system_prompt(now: datetime, language: str = "pt") -> str:
+    note = ""
+    if language in _LANGUAGE_NAMES:
+        name = _LANGUAGE_NAMES[language]
+        note = (f"\nThe customer's latest message is in {name}: write your whole reply in {name}, "
+                f"including the [[quick: ...]] labels.")
     return SYSTEM_PROMPT.format(
         weekday=WEEKDAYS_PT[now.weekday()],
         date=now.strftime("%d/%m/%Y"),
         time=now.strftime("%H:%M"),
+        language_note=note,
     )

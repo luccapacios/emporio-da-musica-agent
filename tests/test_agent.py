@@ -193,3 +193,22 @@ def test_system_prompt_carries_the_chat_rules():
                  "never require the order number", "at most 4 short bullets", "Never paste raw URLs",
                  "get_product with that number", "at most 3", "recommend 1 product plus up to 2 alternatives"):
         assert rule in prompt
+
+
+@pytest.mark.parametrize("message, expected", [
+    ("Hi! How much is the Takamine GD20?", "en"),
+    ("Can I pay in installments? And what is the price with PIX?", "en"),
+    ("¿Cuánto cuesta el Takamine GD20?", "es"),
+    ("Quanto custa o Takamine GD20?", "pt"),
+    ("Pedido 8. E-mail anacarol.ferreira@coldmail.com", "pt"),
+    ("ok", "pt"),
+])
+def test_detect_language(message, expected):
+    from emporio.prompts import detect_language
+    assert detect_language(message) == expected
+
+
+def test_language_is_stated_in_the_system_prompt(settings, toolbox, memory):
+    client = FakeClient([text("It costs R$ 2.199,00.")])
+    Agent(settings, toolbox, client=client, memory=memory).reply("l1", "Hi! How much is the Takamine GD20?")
+    assert "write your whole reply in English" in client.requests[0]["messages"][0]["content"]

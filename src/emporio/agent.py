@@ -14,7 +14,7 @@ from openai import OpenAI
 
 from .config import Settings
 from .memory import ConversationStore, trim_history
-from .prompts import build_system_prompt
+from .prompts import build_system_prompt, detect_language
 from .tools import ToolBox
 
 log = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ class Agent:
     def reply(self, session_id: str, text: str, on_event: Callable[[dict], None] | None = None) -> AgentReply:
         """Answer one customer message. `on_event` hears about each tool call as it starts."""
         history = self.memory.load(session_id) if self.memory else []
-        system = {"role": "system", "content": build_system_prompt(self.toolbox.clock())}
+        system = {"role": "system", "content": build_system_prompt(self.toolbox.clock(), detect_language(text))}
         user = {"role": "user", "content": text}
         # Stored messages carry a timestamp for the chat UI; the model never sees it.
         new_messages: list[dict] = [{**user, "ts": self._stamp()}]
