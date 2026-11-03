@@ -14,7 +14,7 @@ Three options were considered:
 
 | Option | Why not / why |
 |---|---|
-| Everything in the prompt (all CSVs + manual) | It fits (64 products), but puts every customer's personal data in context, breaks the manual's rule of "check the system before quoting", and does not scale. |
+| Everything in the prompt (all CSVs + manual) | It fits (65 products), but puts every customer's personal data in context, breaks the manual's rule of "check the system before quoting", and does not scale. |
 | RAG with embeddings + text-to-SQL agent | Flexible, but generated SQL can read another customer's order, and vector search over an 8-page manual with numbered sections adds a failure mode (missed chunk) without a gain. |
 | **Function calling over deterministic tools (chosen)** | The model decides *when* to look something up; Python decides *what is true*. Privacy checks, prices, installments and return windows are computed in code, not by the model. |
 
@@ -95,7 +95,7 @@ Found while reading the data; each one becomes either code or a documented assum
   (67) 3321-4500 in section 7) and an accented e-mail domain. The company data table and the
   unaccented e-mail from the cover are used. Installments follow the detailed table in 3.1.
 * **Catalog coverage:** the manual mentions woodwinds, brass and orchestral strings and
-  "300+ instruments", but the data has 64 products and none in those three categories. The
+  "300+ instruments", but the data has 65 products and none in those three categories. The
   agent says there are no items in the system for those categories and offers a handoff.
 * **Accessories** are out of scope (manual 1 and 7.1). No partner stores are listed, so the
   agent does not invent any.
