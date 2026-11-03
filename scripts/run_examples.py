@@ -29,7 +29,7 @@ class Scenario:
 SCENARIOS = [
     Scenario(
         "01-catalog-guitars-under-1000",
-        "Catalog search: acoustic guitars up to R$ 1.000",
+        "Catalog search: acoustic guitars up to R$ 1,000",
         "Catalog query with filters (category, price, stock), then a recommendation grounded in the results.",
         [
             "Oi! Quais opções de violões vocês têm até R$ 1000?",
@@ -66,7 +66,7 @@ SCENARIOS = [
         [
             "Oi, meu pedido ainda não chegou",
             "Pedido 8. E-mail anacarol.ferreira@coldmail.com",
-            "Pode sim, por favor",
+            "Obrigada! Vocês me avisam por e-mail?",
         ],
     ),
     Scenario(
@@ -98,8 +98,9 @@ def run(scenario: Scenario, agent, delay: float) -> str:
         "",
         f"**What it shows:** {scenario.shows}",
         "",
-        f"Run on {started:%d/%m/%Y at %H:%M} (Campo Grande time) with `{agent.settings.llm_model}`. "
-        "Customer lines are scripted; Duda's replies and tool calls are the agent's real output.",
+        f"Run on {started:%Y-%m-%d at %H:%M} (Campo Grande time) with `{agent.settings.llm_model}`. "
+        "Customer lines are scripted; Duda's replies and tool calls are the agent's real output. "
+        "The conversation is in Brazilian Portuguese, the store's customer language, unless the customer writes in another language.",
         "",
         "---",
         "",

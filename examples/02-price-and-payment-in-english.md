@@ -2,7 +2,7 @@
 
 **What it shows:** Fuzzy product lookup, PIX price and the installment rule computed from the manual's minimum installment table. The customer writes in English and Duda answers in English: the store's customers write in Portuguese, but the agent follows the customer's language.
 
-Run on 03/11/2026 at 00:36 (Campo Grande time) with `gemini-3.5-flash-lite`. Customer lines are scripted; Duda's replies and tool calls are the agent's real output.
+Run on 2026-11-03 at 00:36 (Campo Grande time) with `gemini-3.5-flash-lite`. Customer lines are scripted; Duda's replies and tool calls are the agent's real output. The conversation is in Brazilian Portuguese, the store's customer language, unless the customer writes in another language.
 
 ---
 

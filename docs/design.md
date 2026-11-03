@@ -1,6 +1,6 @@
 # Design: Empório da Música customer service agent
 
-Date: 2026-11-02. Status: approved, in implementation.
+Date: 2026-11-02. Status: approved before implementation; later decisions are recorded in the README.
 
 ## Goal
 
@@ -88,8 +88,8 @@ Found while reading the data; each one becomes either code or a documented assum
   "after purchase").
 * **All orders in the system are treated as online purchases**, so the 7-day right of
   withdrawal (manual 4.1) applies to them.
-* **Order inconsistencies** (two totals that do not match their items, two credit
-  installments below the minimum installment, a `coming_soon` product marked delivered) are
+* **Order inconsistencies** (two totals that do not match their items, three credit
+  card orders below the minimum installment, a `coming_soon` product marked delivered) are
   reported, not "fixed": the agent quotes the recorded total.
 * **Manual conflicts:** two WhatsApp numbers ((67) 3341-4444 in the company data table,
   (67) 3321-4500 in section 7) and an accented e-mail domain. The company data table and the
@@ -116,7 +116,7 @@ its session id in the browser.
 ## Testing
 
 * `pytest` covers rules, data cleaning, verification and tool outputs without calling a model.
-* `scripts/eval_routing.py` runs about ten customer messages against the live model and checks
+* `scripts/eval_routing.py` runs thirteen customer messages against the live model and checks
   that the expected tools were called (data vs policy vs none). This is the measurable version
   of "knows when to consult data and when to consult policies".
 * `scripts/run_examples.py` produces the example conversations in `examples/` from real runs.

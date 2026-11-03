@@ -2,7 +2,7 @@
 
 **What it shows:** Opening hours with holidays, accessories redirected per the manual, an inactive campaign handled honestly, an off-topic request declined and an attempt to force a discount ignored.
 
-Run on 03/11/2026 at 00:28 (Campo Grande time) with `gemini-3.5-flash-lite`. Customer lines are scripted; Duda's replies and tool calls are the agent's real output.
+Run on 2026-11-03 at 00:28 (Campo Grande time) with `gemini-3.5-flash-lite`. Customer lines are scripted; Duda's replies and tool calls are the agent's real output. The conversation is in Brazilian Portuguese, the store's customer language, unless the customer writes in another language.
 
 ---
 

@@ -17,13 +17,13 @@ everything in this repository is in English.
   OpenAI compatible provider works by changing three environment variables.
 - **Interfaces:** terminal chat, and a web chat served by FastAPI where Duda, the assistant,
   answers with product cards built from the catalog.
-- **Quality:** 121 unit tests without a model, a live tool routing eval
+- **Quality:** 124 unit tests without a model, a live tool routing eval
   ([docs/eval_results.md](docs/eval_results.md)) and five example conversations from real runs
   ([examples/](examples/)).
 
 ## Quick start
 
-Requires Python 3.10+.
+Requires Python 3.10+ (tested on 3.12).
 
 ```bash
 python -m venv .venv
@@ -51,22 +51,26 @@ store customer. Its feature set came from a research pass over reference product
 Messenger, Zendesk Messaging, Lu do Magalu, Amazon Rufus, ChatGPT and Claude, WhatsApp Business,
 Nielsen Norman Group and WCAG guidance), compared against this code.
 
-- **Answers with cards:** product cards (price, PIX, installments, stock, "Detalhes" sheet with
-  specs, "Quero este", compare 2 or 3 side by side), order card with a status timeline and
+- **Answers with cards:** product cards (price, PIX, Brazil's instant payment, installments, stock,
+  a "Detalhes" (details) sheet with specs, "Quero este" (I want this one), compare 2 or 3 side by
+  side), order card with a status timeline and
   tracking code, return-window card, store hours and location card, and a protocol card when the
   case goes to the team.
-- **Transparency:** a live step list while Duda works ("Procurando no catálogo...") and, under each
-  answer, which sources it used. Duda is labeled as an AI assistant, says what it cannot do, and
-  "Falar com a equipe" is always one tap away.
+- **Transparency:** a live step list while Duda works ("Procurando no catálogo...", searching the
+  catalog) and, under each answer, which sources it used. Duda is labeled as an AI assistant, says
+  what it cannot do, and "Falar com a equipe" (talk to the team) is always one tap away.
 - **Conversations:** a history per browser (no accounts; an unguessable id that the server stores
   only as a hash), search, rename, delete one or all, automatic titles, close with a 1 to 5 rating,
   edit the last question or regenerate the answer, download or copy the conversation.
-- **Trust and privacy:** a privacy notice with the store's LGPD section, a warning before sending
-  something that looks like a card number or CPF (card numbers are also masked on the server),
+- **Trust and privacy:** a privacy notice with the store's section on the LGPD (Brazil's data
+  protection law), a warning before sending something that looks like a card number or a CPF (the
+  Brazilian taxpayer id); card numbers are also masked before they reach the model, in the web
+  chat and in the terminal,
   90-day retention, and links only to allowed hosts.
-- **Accessibility and PWA:** WCAG 2.2 AA contrast, keyboard and screen reader support, 44px touch
-  targets, reduced motion; installable on phone and desktop, opens offline (store data is never
-  cached).
+- **Accessibility and PWA:** built toward WCAG 2.2 AA and checked, not formally audited: text
+  contrast measured on every state, keyboard and screen reader support (live regions, focus
+  management), 44px targets on touch screens, reduced motion. Installable on phone and desktop,
+  opens offline (store data is never cached).
 
 Duda's portrait was generated with an image model for this prototype.
 
@@ -150,13 +154,15 @@ so the conversion can be reviewed.
 the list price but never on top of a promotion; installments follow the minimum installment table
 (R$ 50 up to 3x, R$ 80 up to 6x, R$ 100 up to 12x); the 7 day right of withdrawal, 7 day preference
 exchange, 30 day defect exchange and 90 day legal warranty are computed per order; opening hours
-include national, Mato Grosso do Sul and Campo Grande holidays (the brief arrived on Finados, a
-holiday, and the agent knows the store is closed).
+include national, Mato Grosso do Sul and Campo Grande holidays (the brief arrived on Finados, All
+Souls' Day, a national holiday, and the agent knows the store is closed).
 
 **Privacy by construction.** An order is only shown when the order number matches the phone or
 e-mail on file. Two customers share one e-mail address in the data, so a shared e-mail is not
 enough and the agent asks for the phone. Listing orders without a number requires phone *and*
-e-mail. Failed lookups never say whether an order number exists.
+e-mail. Failed lookups never say whether an order number exists: without contact data the tool
+asks for it before looking the order up, and a wrong contact gets the same answer as a missing
+order.
 
 **Model and provider.** Gemini on the free tier, so anyone evaluating the project can run it at
 zero cost with a Gmail account. The choice of version came from measuring, not from the docs:
@@ -183,8 +189,9 @@ shown. Invented protocol numbers are caught the same way. The prompt states the 
 rule in code holds even when a smaller model ignores the prompt, and the eval fails any answer that
 makes an unbacked claim.
 
-**Prompt strategy.** The system prompt holds only identity, voice, scope and rules; facts come from
-tools. The current date and time in Campo Grande are injected each turn, so "are you open today?"
+**Prompt strategy.** The system prompt holds identity, voice, scope, rules and the store's official
+contact details (address, phone, e-mail, from the manual's company table); every other fact comes
+from tools. The current date and time in Campo Grande are injected each turn, so "are you open today?"
 and "can I still return it?" never depend on the model's idea of today. The prompt tells the model
 which tool answers which kind of question, how to present promotions (original price, % off,
 promotional price, per manual 6.2), what to do when an item is out of stock, discontinued or not
@@ -213,7 +220,7 @@ number, the manual's 24 business hours SLA and, when the store is closed, when t
 
 **Product cards without trusting the model's numbers.** In the web chat, answers come with product
 cards. The model only says *which* products to show, in a hidden last line (`[[cards: 83, 85]]`),
-plus up to three tap-to-send replies (`[[quick: Só nylon | Só aço]]`). The server strips these hints
+plus up to three tap-to-send replies (`[[quick: Só nylon | Só aço]]`, nylon only, steel only). The server strips these hints
 and builds every card from the catalog at that moment, so the price, PIX price, installments and
 stock on a card can never be a hallucination. I chose hints in the text over a `show_products` tool
 because a tool costs one more model round trip per answer; if the model forgets a hint, only the
@@ -256,7 +263,7 @@ The data has deliberate inconsistencies. The agent works around them, and
 
 ## Testing and evaluation
 
-- **Unit tests (`pytest`, 121 tests, no model).** Data cleaning, every business rule (installment
+- **Unit tests (`pytest`, 124 tests, no model).** Data cleaning, every business rule (installment
   boundaries, PIX with and without promotions, window deadlines, Saturday closing time, holidays),
   every tool (including that a wrong phone returns no order data), the agent loop with a fake
   client (tool round trip, Gemini thought signatures, history, provider errors, the tool round
@@ -276,13 +283,15 @@ The data has deliberate inconsistencies. The agent works around them, and
 ## Example conversations
 
 Each file is the literal output of `scripts/run_examples.py`: customer lines are scripted, Duda's
-replies and the tool calls are the agent's real output.
+replies and the tool calls are the agent's real output. The conversations are in Brazilian
+Portuguese, the store's customer language, and each file opens with an English summary; example 2
+shows the agent answering a customer who writes in English.
 
 | File | Scenario |
 |---|---|
 | [01-catalog-guitars-under-1000](examples/01-catalog-guitars-under-1000.md) | Catalog search with filters and a grounded recommendation |
 | [02-price-and-payment-in-english](examples/02-price-and-payment-in-english.md) | "How much is the Takamine GD20?": PIX and installments, answered in the customer's language |
-| [03-return-request-with-policy](examples/03-return-request-with-policy.md) | "Me arrependi da compra": identity check, windows computed for the order, warranty path |
+| [03-return-request-with-policy](examples/03-return-request-with-policy.md) | "Me arrependi da compra" (I regret the purchase): identity check, windows computed for the order, warranty path |
 | [04-overdue-order-handoff](examples/04-overdue-order-handoff.md) | Overdue delivery detected and handed to the team with a protocol |
 | [05-store-info-scope-and-guardrails](examples/05-store-info-scope-and-guardrails.md) | Hours and address, accessories, inactive Black Friday, off-topic, prompt injection |
 
@@ -291,10 +300,11 @@ replies and the tool calls are the agent's real output.
 - **No real channel.** The web chat stands in for WhatsApp. Next: a WhatsApp Business webhook in
   front of `/api/chat`, using the sender's phone as an extra identity signal.
 - **Handoffs are a local log.** Next: create tickets in the store's helpdesk and notify the team.
-- **Single process.** SQLite and the JSONL log are fine for a prototype; concurrent requests on the
-  same session are not serialized. Next: a proper store (Postgres or Redis) and per session locks.
+- **Single process.** SQLite, the JSONL handoff log and the in-memory per-session locks work for one
+  server process; several workers or machines would not share them. Next: Postgres or Redis with a
+  shared lock.
 - **Read-only.** The agent cannot place orders, reserve items or cancel; it explains and hands off.
-- **Shipping quotes outside Campo Grande** depend on CEP, weight and size, which the data does not
+- **Shipping quotes outside Campo Grande** depend on the CEP (postal code), weight and size, which the data does not
   have, so the agent explains the rules and hands off.
 - **Eval size.** Thirteen cases show routing works; a production setup would need a larger set run
   on every prompt change, plus LLM-as-judge checks for tone and policy faithfulness, and
@@ -305,12 +315,21 @@ replies and the tool calls are the agent's real output.
   products, acceptable here because all data is fictional.
 - **No retry limit on identity checks.** A production version would rate limit failed order
   lookups per session.
+- **Prompt rules are not guarantees.** The rule to describe products only with tool data reduces
+  unsupported praise but does not remove it (example 1 still calls a guitar "muito confortável");
+  a post-check or an LLM-as-judge eval would catch it. Only the handoff claim has a check in code,
+  and it sends a draft back once.
+- **Tool text is in Portuguese.** Price strings and card labels come from the tools in
+  Portuguese, so an English answer can still contain "12x de R$ 183,25" (example 2). Localizing the
+  tool output is the next step for non-Portuguese customers.
 
 ## Use of AI coding assistants
 
 I built this project with **Claude Code** (Anthropic's coding agent, running Claude Opus 5.5) as a
 pair programmer in the Claude desktop app. Commits made in those sessions carry a
-`Co-Authored-By: Claude` trailer, so the history shows where it was involved.
+`Co-Authored-By: Claude` trailer, so the history shows where it was involved. Each commit closes
+one step; when several steps finished together they were committed one after the other, which
+is why some commits are seconds apart.
 
 **My part: direction, decisions and review**
 

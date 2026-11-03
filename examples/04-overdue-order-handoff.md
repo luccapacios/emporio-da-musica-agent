@@ -2,24 +2,30 @@
 
 **What it shows:** Order lookup with verification, detection that the delivery is past its ETA, and a logged handoff with protocol, SLA and the team's next opening time.
 
-Run on 03/11/2026 at 00:28 (Campo Grande time) with `gemini-3.5-flash-lite`. Customer lines are scripted; Duda's replies and tool calls are the agent's real output.
+Run on 2026-11-03 at 01:16 (Campo Grande time) with `gemini-3.5-flash-lite`. Customer lines are scripted; Duda's replies and tool calls are the agent's real output. The conversation is in Brazilian Portuguese, the store's customer language, unless the customer writes in another language.
 
 ---
 
 **Customer:** Oi, meu pedido ainda não chegou
 
-**Duda:** Para eu dar uma olhada em como está a entrega, você pode me informar o número do pedido junto com o seu e-mail ou telefone cadastrados? 🎸
+> Tools: `get_policy(topic="shipping")`
+
+**Duda:** Olá! Sou a Duda, assistente virtual da Empório da Música. Para eu verificar a situação da sua entrega, por favor, me informe o número do pedido junto com o seu telefone ou e-mail cadastrado.   
+  
+- Número do pedido  
+- Telefone ou e-mail cadastrados
 
 **Customer:** Pedido 8. E-mail anacarol.ferreira@coldmail.com
 
-> Tools: `get_order(order_id=8, email="anacarol.ferreira@coldmail.com")`, `escalate_to_human(summary="Pedido 8 com entrega atrasada (atraso de 248 dias em relação à estimativa de fevereiro).", order_id=8, customer_name="Ana", contact="anacarol.ferreira@coldmail.com", reason="overdue_delivery")`
+> Tools: `get_order(order_id=8, email="anacarol.ferreira@coldmail.com")`, `escalate_to_human(reason="overdue_delivery", customer_name="Ana", order_id=8, summary="Pedido 8 de Ana (anacarol.ferreira@coldmail.com) está atrasado desde 28/02/2026.")`
 
-**Duda:** Oi, Ana! Sinto muito por isso, o sistema mostra que o seu pedido realmente está com a entrega atrasada.   
+**Duda:** Ana, peço muitas desculpas pelo atraso, pois o seu pedido **8** consta como enviado com prazo estimado para **28/02/2026**.   
   
-Já acionei a nossa equipe com o protocolo **EMP-20261103-0001** e entraremos em contato para verificar o que aconteceu com a transportadora. Como nossa equipe não está no momento, retornaremos a partir de **terça-feira, 03/11 às 09:00**, em até 24 horas úteis.
+- Já encaminhei o seu caso para nossa equipe de atendimento sob o protocolo **EMP-20261103-0001**, com retorno em até 24 horas úteis (nossa equipe retorna na terça-feira, 03/11 às 09:00).  
+- Código de rastreamento: `BRJL5544332BR` (você pode consultar no site dos Correios ou da Jadlog).
 
-**Customer:** Pode sim, por favor
+**Customer:** Obrigada! Vocês me avisam por e-mail?
 
-**Duda:** Combinado, Ana! Já está tudo registrado com a nossa equipe e vamos te dar um retorno o mais rápido possível.   
+**Duda:** Sim, Ana, a nossa equipe entrará em contato com você pelo e-mail cadastrado assim que houver uma atualização sobre a entrega.   
   
-Há mais alguma coisa em que eu possa te ajudar hoje?
+Tem mais alguma dúvida em que eu possa ajudar?

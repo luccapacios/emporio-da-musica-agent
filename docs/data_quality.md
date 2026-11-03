@@ -8,14 +8,14 @@ works around each finding and the store team can fix the source.
 | Where | Finding |
 |---|---|
 | product 96 | Giannini GF-3D Dreadnought Sunburst is active with zero stock. Shown as temporarily unavailable. |
-| product 135 | Music Man Bass 1X Electric Bass: description refers to fender but the product is music man. Description withheld. |
-| product 136 | Ibanez Bass 2X Electric Bass: description refers to fender but the product is ibanez. Description withheld. |
+| product 135 | Music Man Bass 1X Electric Bass: description refers to Fender but the product is Music Man. Description withheld. |
+| product 136 | Ibanez Bass 2X Electric Bass: description refers to Fender but the product is Ibanez. Description withheld. |
 | product 136 | Ibanez Bass 2X Electric Bass is discontinued but has 13 units in stock. Not offered. |
-| product 137 | Yamaha Bass 3X Electric Bass: description refers to ibanez but the product is yamaha; description says 5 cordas but specs say 4. Description withheld. |
-| product 139 | Bateria Acústica Yamaha Kit 1 Studio: description refers to pearl but the product is yamaha. Description withheld. |
-| product 140 | Bateria Acústica Pearl Kit 2 Studio: description refers to tama but the product is pearl. Description withheld. |
-| product 142 | Teclado Sintetizador Korg Synth 1 Pro: description refers to roland but the product is korg; description says 88 teclas but specs say 61. Description withheld. |
-| product 144 | Teclado Sintetizador Roland Synth 3 Pro: description refers to yamaha but the product is roland. Description withheld. |
+| product 137 | Yamaha Bass 3X Electric Bass: description refers to Ibanez but the product is Yamaha; description says 5 strings but specs say 4. Description withheld. |
+| product 139 | Bateria Acústica Yamaha Kit 1 Studio: description refers to Pearl but the product is Yamaha. Description withheld. |
+| product 140 | Bateria Acústica Pearl Kit 2 Studio: description refers to Tama but the product is Pearl. Description withheld. |
+| product 142 | Teclado Sintetizador Korg Synth 1 Pro: description refers to Roland but the product is Korg; description says 88 keys but specs say 61. Description withheld. |
+| product 144 | Teclado Sintetizador Roland Synth 3 Pro: description refers to Yamaha but the product is Roland. Description withheld. |
 | category 6 | Instrumentos de Sopro (Madeiras) has no products. |
 | category 7 | Instrumentos de Sopro (Metais) has no products. |
 | category 8 | Cordas Orquestrais has no products. |
