@@ -8,7 +8,6 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
   "background_color": "#FFFFFF",
   "theme_color": "#143B56",
   "categories": ["shopping", "music"],
